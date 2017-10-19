@@ -1,0 +1,132 @@
+Problem 3 - Linear Collections + Memory management
+
+Arrays:
+  `int a[10];`
+  an array that sits on the stack of fixed size 
+
+  on the heap: 
+  `int *p = new int[10];` 
+
+  To delete array: 
+  `delete []p;` <- C++ syntax for freeing array 
+
+  `new` => `delete` 
+  `new []` => `delete []` 
+
+  Mismatching `new` and `delete` is undefined behaviour
+
+--------------------------------------------------------------
+
+Issue: What is our array is not big enough? 
+More issue: there is no `realloc` for `new`/`delete`
+  
+  We are going to use some abstraction to solve the problem: 
+
+    <!-- C++ !-->
+    #ifndef VECTOR_H
+    #define VECTOR_H
+
+    namespace CS246E {
+      struct vector {
+        size_t size, cap; 
+        int   *theVector; 
+      }
+      const size_t start_size = 1; 
+
+      vector make_vector();
+      size_t size(const vector &v);
+      int& item_at(const vector &v, size_t i); // returning reference allows `item_at(v, 5) = 17` 
+      void push_back(const vector &v, int x);
+      int pop_back(const vector &v);
+      void dispose(vector &v);
+    }
+
+    #endif 
+
+    // vector.cc
+    #include "vector.h"
+
+    // confine the use of this function in this file 
+    namespace {
+      void increase_cap(CS246E::Vector &v) {
+        if(v.size == v.cap) {
+          int *newVec = new int[2*v.cap];
+          for(size_t i=0; i<v.cap; ++i) {
+            newVec[i] = v.theVector;[i]
+          }
+          delete[ ] v.theVector;
+          v.theVector = newVec;
+          v.cap *= 2;
+        }
+      } 
+    }
+
+    CS246E::Vector CS246E::make_vector() {
+      Vector v {0, start_size, new int[start_size]};
+      return v;
+    }
+
+    size_t CS246E::size(const Vector &v) {
+      return v.size;
+    }
+
+    int& CS246E::item_at(const Vector &v, size_t i) {
+      return v.theVector[i];
+    }
+
+    void CS246E::push_back(Vector &v, int n) {
+      increase_cap(v);
+      v.theVector[v.size++] = n;
+    }
+
+    void CS246E::pop_back(Vector &v) {
+      if(v.size() > 0) {
+        --v.size;
+      }
+    }
+
+    void CS246E::dispose(Vector &v) {
+      delete[ ] v.theVector;
+    }
+
+Reading 7.7.1 
+Ch 14
+Reading 16.2
+
+  // main.cc
+  #include "vector.h"
+  
+  using CS246::vector; 
+
+  int main() {
+    vector v = CS246E::make_vector();
+    push_back(v, 1); // amortized O(1) time 
+    push_back(v, 10); // can add as many as we want and do not need to worry 
+    push_back(v, 100); 
+    // ...
+    dispose(v);
+  }
+
+  Question: why do not we have to say CS246E::pushback/CS246E::itemAt/CS246E::dispose everytime 
+  Answer: Argument-Dependent Lookup (ADL) - also called Konig lookup 
+          If the type of a function argument belongs to a namespace n and as well as the current scope 
+          for a function matching f
+
+  Observe that we have already been taking advantage of this 
+  `std::cout << x` note that `<<` is in the namespace of `std`
+  then it should be `std::cout std::<< x` 
+  but thanks to ADL, `std` can be omitted 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

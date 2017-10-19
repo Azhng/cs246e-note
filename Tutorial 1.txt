@@ -1,0 +1,97 @@
+Write a C++ program which: 
+  - accepts a file on command line
+  - count the number of identical files in current directory 
+  - copy the file until there are 10 
+
+  We will learn how to invoke shell command from c++ program 
+
+  `int system(const char *)` 
+    - uses the shell /bin/sh to run this string as a command
+
+<!-- C++ !-->
+#include <cstdlib>
+
+int main(){
+  system("ls");
+  return 0;
+}
+
+<!-- C++ !-->
+#include <cstdlib>
+#include <string>
+#include <sys/wait.h>
+
+int system_wrapper(std::string str) { 
+  int result = system(str.c_str());
+  return WEXITSTATUS(result);
+}
+
+int main(int argc, char **argv){
+  //argv[0] = program nmae 
+  //argv[1] = name of the file to copy 8 times 
+
+  //Nmae the copies copy copy1..copy9 
+
+  // if:
+  // * we weren't given an argument 
+  // * or the file we were given doesn't exist 
+  // Print a helpful message 
+  if(argc != 2 || system_wrapper("test -f '" + std::string(argv[1])) + "'"){
+    std::cerr << "Usage: " << argv[0] << " '[file to copy]'" << std::endl;
+    return 0;
+  }
+
+  // Determine how many files there are in the current directory 
+  int num_files; 
+
+  FILE *f = popen("ls | wc -w", "r");
+  fscanf(f, "%d", &num_files);
+  pclose(f);
+
+
+  char copy = '1';
+  while(num_files < 10){
+    system_wrapper("cp " + string(argv[1]) + " copy" + copy);    
+  }
+
+  return 0;
+}
+
+
+`$ test -f clone.cc` == `$ [ -f clone.cc]` to see if a file exists or not 
+
+
+
+In <cstdio> we have:  
+  - popen: 
+    runs a shell command and returns a "file" to read/write 
+
+  - pclose: close a "pipe"
+
+
+<!-- C++ !-->
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+
+int main(){
+  int result;
+  FILE *f = popen("wc -w helloworld.tt", "r");
+  fscanf(f, "%d", &result);
+  std::cout << "The number is: " << result << std::endl;
+  return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

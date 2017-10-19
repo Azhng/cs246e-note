@@ -1,0 +1,221 @@
+Lecture 1
+Textbook: C++ Programming Language 
+
+Goals - meet the CS 246 objectives 
+      - more breadth and depth 
+      - a course on abstraction 
+      - demand-driven, problem-oriented presentation
+        introduing C++ concept as needed 
+      - but still a careful presentation of C++ 
+      - Linux stuff (in tutorials)
+
+
+
+
+Problem 1: Program Input/Output 
+Read 2.2, 4.3 
+  Running a program from the command line. 
+  `$ ./program-name-or-path/to/program-name` 
+     ^
+     current directory 
+
+  Providing input: 
+    2 ways:
+      1) `$ ./program-name arg1 arg2 ... argn`
+          - args are written into the programs memory 
+             _________________________________________
+            |____________code_________________________|
+            |____________n+1__________________________| <- argc 
+            |_________________________________________| <- ./program-name   |
+            |_________________________________________| <- arg1             |
+            |_________________________________________| <- arg2             | 
+            |_________________________________________| <- arg3             | => argv  
+            |_________________________________________|    .
+            |_________________________________________|    .
+            |_________________________________________|    .
+            |_________________________________________| <- argn             | 
+      2) `$ ./program-name`
+         `(then type something)`
+          - input comes through the standard input stream (stdin)
+
+                                    ->(stderr - never buffered)->
+            ->(stdin)->  [program]  *                          -> usually a screen 
+              ^~~~~~                ->(stdout - maybe buffered)->
+             usually keyboard                    
+
+          But we can redirect input/output: 
+          `$ ./my-program < infile > outfile 2> err-file`
+                                             ^
+                                             file descriptor for stderr
+              File descriptor
+              0 -> stdin
+              1 -> stdout 
+              2 -> stderr
+
+      <!-- C !-->
+      #include <stdio.h>
+
+      void echo(FILE *f){
+        for(int c = fgetc(f); c != EOF; c = fgetc(f)){ // fetch from stdin/file 
+          putchar(c);                                  // put to stdout
+        }
+      }
+
+      int main(int argc, char **argv){
+      //       ^~~~~~~   ^~~~~~~~~~~
+      //        |         cmd line args, argv[0] = program name, argv[argc] = NULL
+      //       number of command line args, >= 1
+        if(argc == 1){
+          echo(stdin);
+        }else{
+          for(int i=1; i<argc; ++i){
+            FILE *f = fopen(argv[i], "r");
+            echo(f);
+            fclose(f);
+          }
+        }
+        return 0; // gives status code back to shell, to query: echo $?
+      }
+
+    Observe:
+      commandline arguments/input from stdin are two DIFFERENT programming techniques
+
+    To compile:
+      `$ gcc -std=c99 -Wall my-program.c -o program-name`
+
+
+
+    This program is a simplification of Linux `cat` command 
+      `$ cat file1 file2 file3` - open them and print one ofter another 
+      `$ cat `                  - echo stdin
+      `$ cat < file `           - file used to as a source for stdin 
+                                - the shell (not `cat`) opens the file 
+                                - display 
+
+
+    Can we write the cat program in C++ ?
+      - Yes. We just did. 
+      - all C programs are already valid C++
+      - but it is not how things are usually done 
+
+
+      The "C++ way": 
+        Command-line args - same as in C 
+        stdin/stdout      - #inlcude <iostream>
+
+        <!-- C++ !-->
+        #include <iostream>
+        int main(int argc, char **argv){
+          int x, y;
+          std::cin >> x >> y;
+          std::cout << x + y << std::endl;
+          //                    ^~~~~~~~~
+          //                    not only prints newline char, also flush the buffer 
+        }
+
+
+      `std::cin`, `std::cout`, `std::cerr` these are streams,
+                                           type -> `std::istream(cin)` and `std::ostream(cout, cerr)`
+      `>>` input  operator, `cin >> x` -> populates `x` as a side-effect
+                                       -> returns `cin` 
+      `<<` output operator, `cout << x + y` -> prints `x + y` as a side-effect 
+                                            -> returns `cout` 
+
+        Working with files in C++:
+          <!-- C++ !-->
+          std::ifstream f {"name-of-file"}; // ofstream for output
+          char c;
+          while(f >> c) { // returns f, implicitly converts to a bool, `true` menas succeeded, `false` means read failed
+            std::cout << c;  
+          }
+        However, the input  : "something something something"
+                 the output : "somethingsomethingsomething"
+          stream input skips whitespace (just like `scanf`)
+          To include whitespace: 
+          <!-- C++ !-->
+          std::ifstream f{"~~~~"};
+          f >> std::noskipws;
+          //   ^~~~~~~~~~~~~~
+          //   io manipulator
+          char s; 
+          //  `
+          //  `
+          //  `
+
+        Note: important things to observe 
+          - no explicit calls to fopen/fclose
+          - initializing `f{"name of file"}` opens the file 
+          - file is closed when the variable falls off the scope 
+
+
+        C++ version of cat:
+          <!-- C++ !-->
+          #include <iostream>
+          using namespace std; 
+
+          void echo(istream f){
+            char c;
+            f >> noskipws;
+            while(f >> c) cout << c;
+          }
+
+          int main(int argc, char **argv){
+            if(argc == 1) echo(cin);
+            else {
+              for(int i = 1; i < argc; ++i){
+                ifstream f{argv[i]};
+                echo(f);
+              }
+            }
+          }
+
+        Well, this does not even compile 
+          `cin` has type istream, `echo` takes an `istream` 
+          however, `f` has type `ifstream`
+          is `echo(f)` a type mismatch ? 
+             NO - this is actually fine, `ifstream` is a subtype of `istream` 
+                - Any ifstream can be treated as an `istream`
+                - foundational concept in OOP 
+                - details later 
+
+        The error is - you cannot write a function that takes `istream` that `echo` does 
+          Why? 
+            - time for a discussion 
+              -> Compared to what we know in C 
+                <!-- C !-->
+                int x;
+                scanf("%d", &x);
+
+                <!-- C++ !-->
+                int x;
+                cin >> x; // why does it work? we are not passing the pointer
+
+              C and C++ are pass-by-value languages, so `scanf` needs the address of `x` in order to 
+              mutate `x` via pointer 
+              So why is it not `cin >> &x` ? 
+              C++ has another pointer-like type: * Reference * 
+
+              `int  y = 10;`     y |10|
+              `int &z = y;`      `z` is a * lvalue reference * to `y` 
+                                 very similar to `int *const z = y;`
+                                                      ^~~~~~
+                                                      this means `z` cannot point to other places 
+                                 `z` in this case is very similar, with auto-dereferencing 
+                                 z |y|
+                                 `z = 12;`, `y` is now 12 
+              `int *p = &z;`     `p` is now pointing at `y` 
+
+              in all cases, `z` acts as if it were `y` 
+              `z` in some sense, is an alias for `y` 
+
+              lvalue refs * must * be initialized and * must * be initialized to something that has an address 
+              `int &z = 4;` <- this is illegal, does not have address 
+              `int &z = a + b;` <- this is illegal, does not have address too 
+
+          So essentially, `cin` is taking a reference as a parameter instead of value 
+
+
+
+
+
+

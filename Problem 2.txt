@@ -1,0 +1,229 @@
+Probelm 2: Linear Collections + Modularity
+- linked list and arrays 
+
+  Linked List: 
+  <!-- C++ !-->
+
+  #include <cstddef> // provides the size_t 
+
+  // node.h
+  struct Node {
+    int data;
+    Node *next; 
+  };
+
+  size_t size(Node *n);
+  // ...
+  // and other linkedlist functions 
+
+  // node.cc
+  #include "node.h"
+
+  // we are using pointer instead of reference here 
+  // bc reference cannot be null and cannot be point to anywhere else 
+  size_t size(Node *n) {
+    size_t count = 0;
+    for(Node *cur = n; cur; cur = cur->next){
+      ++count;
+    }
+    return count;
+  }
+
+
+  // main.cc 
+  #include "node.h"
+
+  int main() {
+    Node *n = new Node;
+    n->data = 3;
+    n->next = nullptr;
+    Node *n2 = new Node{3, new Node {6, nullptr}};
+    Node *n3 = new Node{4, new Node {5, nullptr}};
+    // ...
+    delete n;
+    delete n2->next; 
+    delete n2; 
+
+    while(n3){
+      Node *temp = n3;
+      n3 = n3->next;
+      delete temp;
+    }
+
+    return 0; 
+  }
+
+
+Note: 
+  - do NOT use `malloc` and `free` in C++ 
+  - Use `new`/`delete`
+  - do NOT use `NULL` 
+  - use `nullptr` instead. `nullptr` is not number compatible and means actually null pointer 
+    (instead of becomes 0 like `NULL`)
+
+
+
+
+What happens if we do: 
+  `#include "node.h"`
+  `#include "node.h"`
+
+  - it will not compile because `struct Node` is defined twice 
+
+How do we prevent this? 
+  - C Preprocessor
+    * transforms the program before the compiler sees it 
+    e.g.  
+      `#include _____` drops content of a file "right here"
+        note: when including old C headers, `#include <stdio.h>` => `#include <cstdio>`
+      `#define VAR VALUE` set a preprocessor variable and replace all subsequent `VAR` to be replaced with `VALUE` 
+                          except within strings 
+      e.g.  
+        `#define MAX 10`
+        `int x[MAX];`
+        ^~~~~~~~~~~
+        translate into `int x[10];`
+
+
+  <!-- C++ !-->
+
+  // myprogram.cc
+  int main(){
+    int x[MAX];
+    // ... 
+  }
+
+  This program will not compile, because `MAX` isn ot being defined. 
+  But we can set these macro constant at compile time:
+    `$ g++14 -DMAX=10 myprogramm.cc`
+              ^~~~~~
+              make a `#define` command line 
+
+Consider: 
+  `#if SECURITYLEVEL == 1`
+    `short int`
+  `#elif SECURITYLEVEL == 2`
+    `long long int`
+  `endif`
+    `publicKey;`
+
+  This is conditional compilation, choose either `short int` or `long long int` to present to the compiler 
+
+
+Special case: 
+  `#if 0` -- industrial strength "comment out"
+                              `/* ... */` -- doest not nest  
+                              `//`  
+  `#endif`
+
+
+Fixing the double include problem: 
+  we use `#include` guard
+
+  <!-- C++ !-->
+
+  // node.h 
+  #ifndef NODE_H
+  #define NODE_H 
+  // if no value is being provided the #define value defines it to be empty string 
+  // ... (file contents) 
+  #endif 
+
+  First time `node.h` is included, `NODE_H` is not defined, so the file is included. 
+  Subsequently when `node.h` is included, `NODE_H` is defined, so the file is suppressed 
+
+  NOTE ! IMPORTANT !: put `#include` guards in header files 
+  NEVER 
+    - compile .h files 
+    - include .cc files 
+
+Now - what if someone writes: 
+  <!-- C++ !-->
+  struct Node {
+    int data;
+    Node *left, *right;
+  };
+
+  size_t size(Node *n); // size of tree 
+
+
+And we want to use both tree and linked list.
+
+Well, we cannot really use both in the same program 
+Solution: Namespace 
+  
+  <!-- C++ !-->
+
+  // list.h 
+  namespace List {
+    struct Node {
+      int data; 
+      Node *next; 
+    };
+
+    size_t size(Node *);
+  }
+
+  // tree.h 
+  namespace Tree {
+    struct Node {
+      int data;
+      Node *left, *right;
+    };
+    size_t size(Node *);
+  }
+
+
+  // list .cc
+  #include "list.h"
+
+  size_t List::size(Node *n) {
+    // ... 
+  }
+
+
+  // tree.ccc 
+  #include "tree.h"
+  namespace Tree {
+    size_t size(Node *) {
+      // ... 
+    }
+  }
+
+
+  // main.cc 
+  #include "list.h"
+  #include "tree.h"
+
+  int main() {
+    List::Node *ln = new List::Node {1, nullptr};
+    Tree::Node *tn = new Tree::Node {2, nullptr, nullptr};
+
+    // ... 
+    delete ln; 
+    delete tn; 
+  }
+
+
+
+Unlike struct, anyone can add stuff to `namespace`
+`namespace` can also be nested 
+Some other people can write: 
+  <!-- C++ !-->
+
+  // some_other_file.h
+  namespace List {
+    int some_other_fn();
+    struct some_other_struct {...};
+  }
+
+
+But there is an exception: 
+  you are not allowed to add things into `std` namespace, it is not permitted 
+  (or more precisely, it is undefined behaviour)
+
+
+
+
+
+

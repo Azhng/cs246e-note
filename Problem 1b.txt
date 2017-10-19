@@ -1,0 +1,197 @@
+Recall that the `echo` function was not working from last lecture 
+It is due to the restriction of reference: 
+  Cannot: 
+    - you cannot create a pointer to a reference 
+      (but if it is legal, it would look like this `int &*x;`)
+    - but reference to a pointer is fine 
+      e.g. 
+        `int *&x = __ ;`
+    - create reference to reference 
+      `int &&r = z;` the syntax is actually not illegal, but the semantics actually means something else 
+      Topic for another day 
+    - cannot create an array of reference 
+      `int &r[3] = {...}; ` 
+  Can:
+    - use as functon parameters 
+      <!-- C++ !-->
+      void inc(int &n){
+        //         ^~
+        //        const pointer to argment x, changes affects x 
+        ++n;
+      }
+
+      int main(){
+        int x = 5; 
+        inc(x);
+        cout << x; // prints 6 
+      }
+
+
+Lets go back to last lectures 
+  `cin >> x` works because `x` is passed by reference
+  here is the signature for `>>`: `istream& operator>>(istream &in, int &n)`
+
+Now consider:  
+  `stuct Really Big {...};`
+  `int f(ReallyBig rb) {...}`
+         ^~~~~~~~~~
+         in C++, `struct` keyword in the parameters declaration can be omitted 
+  The parameters are passed-by-value in C++, thus this function could potentially be really slow 
+  But in C++ we can passed by reference 
+  `int g(ReallyBig &rb) {...}`
+         ^~~~~~~~~~~~~
+         reference -> no copy -> faster code 
+         but `g` can potentially bring mutation to `rb` 
+  `int h(const ReallyBig &rb) {...}`
+         ^~~~~~~~~~~~~~~~~~~~
+         fast -> no copy 
+         `h` can also not cause any mutation to `rb`
+
+
+  For anything larger than a pointer, it should be passed by const-reference 
+  Unless the function is intented to create a copy anyways, then it should be passed-by-value
+
+
+Clearly that we cannot pass value literal into function that takes reference 
+but consider: 
+  <!-- C++ !-->
+  int f(int &n) {...}
+
+  int g(const int &n) {...}
+
+  f(5) // ILLEGAL, cannot initialized lvalue ref (n) to a literal 
+  g(5) // LEGAL, since (n) can never be changed, compiler allows this, since 5 essentially 
+       // is stored in some temporory location, thus (n) actually has something to points to 
+
+
+Lets go back to `cat` we wrote last lecture, notice the function signature `void echo(istream f) {...}` means that 
+there are two complete two input stream, which is totally not the case.
+Thus `istream` essentially cannot be copied (disallowed by C++) because it does not make a lot of sense 
+
+If we write `void echo(istream &f) {...}` then the program would compile
+
+
+To compile: `$ g++ -std=c++14 -Wall mycat.cc -o mycat` 
+To run:     `$ ./mycat `
+
+
+
+
+Separate Compilation:
+  - put echo function in its own module 
+  echo.h  `void echo(istream &f);
+  echo.cc `#include "echo.h"`
+          `void echo(istream &f){...}`
+  main.cc `#include <iostream>`
+          `#include <fstream>`
+          `#include "echo.h"`
+          ...
+          `int main(...) {...}`
+
+  - to compile: 
+    `$ g++14 echo.cc` would clearly fail "undefined reference to 'main'"
+      this is an linking error, because there is no `main` function 
+    `$ g++14 main.cc` would also fail "undefined reference to 'echo'"
+      also an linking error 
+
+    So the correct way of doing this: 
+      `$ g++14 -c echo.cc`
+      `$ g++14 -c main.cc`
+      `-c` flag means just compile but do not link 
+      This two commands creates two pieces of program (`main.o` and `echo.o`) in the current directory 
+      Then we can run the linker:
+      `$ g++ echo.o main.o o mycat` to link two # object # files, this is the step that runs the linker 
+
+    Advantage: 
+      - only to recompile the part of the program that was being modified and then relink 
+        e.g. 
+          if we only changed `echo.cc`, we can just recompile `echo.cc` then relink. `main.o` remains intact 
+          vice versa for `main.cc` 
+
+          However, if we changed the `echo.h` we need to recompile both `echo.cc` and `main.cc` 
+          since `#include` directive essentially just copy and paste the header text into source file 
+
+    What if we do not remember what we changed ? 
+    What if we forgot what depends on what ?
+
+    -> There is a Linux tool: make 
+      How does it work? 
+        - create a Makefile content: 
+          <!-- Makefile !-->
+          mycat:  main.o echo.o # dependencies 
+                  g++ main.o echo.o -g -o mycat  # recipes 
+          # ^~~~~~~~
+          # This must be a tab
+
+          main.o: main.cc echo.h
+          				g++ -std=g++14 -Wall -g -c main.cc 
+
+          echo.o: echo.c echo.h 
+          				g++ -std=g++14 -Wall -g -c echo.cc
+
+          .PHONY: clean 
+          clean: 
+          	rm make.o echo.o mycat 
+
+
+How make works: list a dir in long form: 
+	
+	[ ____ _____ _____ _____ ]  ___________  ______   _____  ____  _______________________ ________
+	  type owner group other    num of link  owner    group  size  last modified date/time name 
+    permission 
+
+
+What make is doing, is to start at the leaves of the dependency graph
+  - if the dependency is newer than the target, rebuild the target, and so on, up to the root target 
+    e.g. 
+      when we change `echo.cc`, `echo.cc` is newer than `echo.o`, this means it is newer than `mycat`, 
+      then we rebuild `mycat`, then relink 
+
+How can we make it better 
+  
+  `make` supports shortcuts using variables 
+  <!-- Makefile !-->
+  CXX=g++ 
+  # name of the compiler 
+  CXXFLAGS = -std=c++14 -Wall 
+  EXEC = myprogram 
+  OBJECTS = main.o echo.o 
+  ${EXEC}: ${OBJECTS} 
+  				 ${CXX} ${OBJECTS} -o ${EXEC}
+  main.o: main.cc echo.h
+  echo.o: echo.cc echo.h
+  .PHONY
+  clean: 
+  	rm ${OBJECTS} ${EXEC}
+
+
+  We omitted the recipes cuz make can "guess the right one" 
+
+  However, we are still required to manually write dependencies, and it is hard. 
+  But, compiler can help 
+    `$ g++14 -c -MMD echo.cc` creates a file `echo.d` that contains its dependency 
+    `$ cat echo.d` 
+    > `echo.o: echo.cc echo.h` 
+      Now we just need to somehow include .d files into Makefile 
+
+    <!-- Makefile !-->
+    CXX = g++ 
+    CXXFLAGS = -std=c++14 -Wall -MMD 
+    EXEC = mycat 
+    OBJECTS = main.o echo.o 
+    DEPENDS = ${OBJECTS: .o=.d} 
+
+	  ${EXEC}: ${OBJECTS} 
+  					 ${CXX} ${OBJECTS} -o ${EXEC}
+  	-include ${DEPENDS}
+	  .PHONY
+	  clean: 
+	  	rm ${OBJECTS} ${EXEC} ${DEPENDS}
+
+
+Best practice: 
+  - always use makefiles before starting coding
+
+
+  
+

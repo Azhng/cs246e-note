@@ -194,7 +194,7 @@ public:
     unique_ptr& operator=(const unique_ptr &other) = delete;
 
     // define move ctor
-    unique_ptr(unique_ptr &&other) : p{other} {
+    unique_ptr(unique_ptr &&other) : p{other.p} {
         other.p = nullptr;
     }
 

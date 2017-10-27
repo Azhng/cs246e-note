@@ -293,9 +293,91 @@ void f() {
 Note:
 - `override` here is not a keyword, it is a _contextual keyowrd_, only has meaning when declared after class methods 
 
+Assume `isHeavy` is `virtual` , so now we can finally have a truly deterogeneous collecton 
+
+``` C++
+vector<Book *> library;
+library.push_back(new Book{/*...*/});
+library.push_back(new Comicbook{/*...*/});
+
+// or even better 
+vector<unique_ptr<Book>> library; 
+
+int howManyHeavy(const vector<Book*> &v) {
+    int count = 0;
+    for(auto &b : v) {
+        if(b->isHeavy()) {
+//            ^~~~~~~~
+//            correct version of isHeavy always gets called 
+//            even though we do'nt know what's in the vector, and the items are probably not the same type 
+            ++count;
+        }
+    }
+    return count;
+}
+```
 
 
-Assume `isHeavy` is `virtual` 
+
+Same code - different behaviour: __Polymorphism__
+
+
+Side Note: 
+``` C++
+for(auto &b : library) delete b; // this is not necessary if library is a vector of unique_ptr
+```
+
+
+
+## Question: __How__ do virtual methods work and why they are more __expensive__ ?
+- Standard does not specify how they should be implemented, so the anwer is implementation dependent
+- But typically:
+
+```        
+Book b1; 
+ ________              ________
+| vptr   | -------->  | "book" | <- Vtable (virtual method tables), contains only virtual method 
+| title  |            |isHeavy | ------------------> Book::isHeavy
+| author |
+| length |
+ --------              ________
+                   -->|"comic" | <- Vtable 
+                  |   |isHeavy | ------------------> Comicbook::isHeavy
+                  |
+ ________         |
+| vptr   | --------
+| title  |
+| author |
+| length |
+| hero   |
+ --------
+```
+
+
+- Non-virtual methods =>ordinary function calls 
+- if there is at least one virtual methods:
+    - compiler creates a table of function pointers 
+        - one per class 
+        - the Vtable 
+    - each object contains the pointer to its class' Vtable 
+    - calling the virtual method 
+        - follow the `vptr` to the Vtable, follow the function pointer to the correct function  
+    - `vptr` is often the first field of each class:
+        - so that a subclass object still looks like a super class object 
+        - so the program knows where `vptr` is (since we don't know how many fields a class has )
+    - so virtual methods incur a cost in time (extra ptr derefs) and space (each object gets a `vptr`)
+
+    - If a subclass doesn't override a virtual method, its will points to its parent's Vtable's implementation
+    
+
+
+
+
+
+
+
+
+
 
 
 

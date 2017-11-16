@@ -301,7 +301,7 @@ private:
 
 
 
-## __I__ terface Segregation Principle
+## __I__ nterface Segregation Principle
 - many small interfaces is better than one larger interface 
 - if a class has many functionalities, each client of the class should see only the functionality it needs 
 - E.g.
@@ -512,18 +512,181 @@ D:   |vptr    | <- recall`is-a` relationship, it should look like an A*, B*, C*,
 
 ```
     - what does g++ do? 
+      - `B` and `C` need to be laid out so that we can find the `A` part, 
+        - but distance is not known
+        - since the distance depends on the runtime type of the object 
 
 ```
-
-    |vptr    |
+    |vptr    |  <- D*, B* (?)
     |B fields|
-    |vptr    |
+    |vptr    |  <- C* (?)
     |C fields|
     |D fields|
-    |vptr    |
+    |vptr    |  <- A* 
     |A fields|
 
 ```
+- Solution 
+  - location of base object stored in Vtable 
+- Also note
+  - our diagram below doesn't simultaneously look like `A`, `B`, `C`, `D` 
+    - but slices of it do 
+  - therefore, pointer assignment amount `A`, `B`, `C`, `D` pointers may change the address stored in the pointer 
+  - E.g.
+``` C++
+D *d = /*...*/;
+A *a = d; // change the address 
+```
+  
+  - `static_cast`, `const_cast`, `dynamic_cast` under multiple inheritance will also adjust value of the pointer
+  - `reinterpret_cast` will NOT 
+    - hence it is extremely dangerous under multiple inheritance
+
+
+
+
+## __D__ ependency Inversion Principle 
+- high-level modules should not depend on low-level modules. Both should depend on abstractions 
+- abstract classes should never depend on concrete classes 
+
+### Traditional top-down design 
+```
+  |high-level module|  ---use--->  |low-level module|
+
+E.g.
+  
+  |word count| ---use--->|keyboard reader|
+                         ^~~~~~~~~~~~~~~
+                         what if I want to use file reader ? 
+                         - change to details affect higher level word count module 
+
+```
+
+### With dependency inversion 
+```
+- strategy pattern again 
+
+  |high-level module| ---> |low-level abstraction|
+                                     ⧊
+                                     |
+                              |low-level module|
+
+E.g.
+  
+  |word count| -----> |input interface|
+                              ⧊
+                              |
+                      -------------------
+                     |                   |
+              |keyboard reader|       |file reader|
+
+
+Note: this works over several layers as well 
+
+
+  |high| --->  |medium| ---> |low|
+
+
+  |high|  ---> |medium interface|
+                    ⧊
+                    |
+                |medium| ---> |low interface|
+                                    ⧊
+                                    |
+                                  |low|
+```
+
+- Example:
+```
+
+  |Timer| ♢-> |Bell     |      When the timer hits some specified time, it rings the Bell
+              |+notify()|       (calls Bell::notify, which rings the bell)
+
+
+What if we want the timer to:
+- trigger other event 
+- have more than one bell 
+
+                *
+  |Timer| ♢----->   |Responder|
+                    |+notify()|
+                        △
+                        |
+                  ---------------
+                 |               |
+            |Bell     |       |Light    |
+            |+notify()|       |+notify()|
+
+
+Maybe we want a dynmaic set of responders 
+
+   ______________________       *   _________
+  |Timer                 |  ♢--->  |Responder|
+  |+register(Responder)  |  <---♢  |+notify()|
+  |+unregister(Responder)|              ⧊
+                                        |
+                                  ---------------
+                                 |               |
+                            |Bell     |       |Light    |
+                            |+notify()|       |+notify()|
+
+But now we have broken a rule 
+  - abstract `Responder` is depending on the concrete timer class 
+  - we now apply Dependency Inversion again 
+
+
+   ______________________       *   _________
+  |Source                |  ♢--->  |Responder|
+  |+register(Responder)  |         |+notify()|
+  |+unregister(Responder)|              ⧊
+      ⧊                                 |
+    __|________                  ---------------
+   |Timer      |            ____|____         __|______
+   |+getTime() | <---♢     |Bell     |       |Light    |
+                  |        |+notify()|   |--♢|+notify()|
+                  |-----------------------
+
+If Bell/Light behaviour depends on time, they may depend on the concret timer for getTime
+
+
+We could dependency invert this again (if we want)
+```
+
+
+## We can have a more General Solution: known as _Observer Pattern_
+
+```
+                            *
+  |Subject          | ♢-----> |Observer|
+  |+notifyObservers |         |+notify |
+  |+attach(Observer)|             ⧊
+  |+detach(Observer)|             |
+        ⧊                         |
+        |                         | 
+  |ConcreteSubject|   <----♢   |ConcreteObserver|  
+  |+getState()    |            |+notify()       |
+```
+
+- Sequence of calls:
+1. `ConcreteSubject`'s state changes 
+2. `Subject::notifyObservers()` / either called by subject itself or by some external controller 
+  - calls each `Observer`'s `notify()` 
+  - each `Observer` calls `ConcreteSubject`'s `getState()` to query the state and react accordingly 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

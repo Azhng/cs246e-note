@@ -69,3 +69,11 @@ public:
 
 ```
 
+## `Mixin`s - Can mix and match subclass functionality without writing new classes 
+
+- Note
+    - if `SpecialBox` is a subclass of `Box`, then `SpecialBox` has no relation to `Logger<Box, int>` Nor is there any relationship between `Logger<SpecialBox, int>` 
+    - but with CRTP, `SpecialBox` is a subtype of `Logger<Box, int>` 
+        - we can specialize behaviour of virtual functions 
+
+

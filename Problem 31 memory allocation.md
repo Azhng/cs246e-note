@@ -67,7 +67,7 @@ int main() {
 #include <new>
 
 void *operator new(size_t size) {
-    cout << "Request for "" << size << "bytes\n";
+    cout << "Request for " << size << "bytes\n";
     if (size == 0) size = 1;
     while (true) {
         void *p = malloc(size);

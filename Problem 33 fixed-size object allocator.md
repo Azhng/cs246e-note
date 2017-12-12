@@ -62,9 +62,9 @@ public:
     
     fsAlloc() {
         for (int i = 0; i < n - 1; ++i) {
-            theSlot[i] = i + 1;
+            theSlot[i].next = i + 1;
         }
-        theSlot[n-1] = -1;
+        theSlot[n-1].next = -1;
     }
 
     T *allocate() noexcept { 

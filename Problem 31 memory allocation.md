@@ -33,7 +33,7 @@ Now let's control the memory allocation
 
 ``` C++
 void *operator new(size_t size) {
-    cout << "Request for "" << size << "bytes\n";
+    cout << "Request for " << size << "bytes\n";
     return malloc(size);
 }
 
